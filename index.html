@@ -86,9 +86,9 @@
       var buildUrl = "Build";
       var config = {
         arguments: [],
-        dataUrl: buildUrl + "/b47afd941ed588b98993b3c222f1baab.data.unityweb",
+        dataUrl: buildUrl + "/19870d5b7879b40f2e80c0e2414aade1.data.unityweb",
         frameworkUrl: buildUrl + "/152a1abdade619fc25d79132703e77ca.framework.js.unityweb",
-        codeUrl: buildUrl + "/b7e281502706d69f4d5115295a13e67f.wasm.unityweb",
+        codeUrl: buildUrl + "/320375d97f784bf9b0d41123343d72e8.wasm.unityweb",
         streamingAssetsUrl: "StreamingAssets",
         companyName: "Dialogo Studija",
         productName: "Kelias",
@@ -99,7 +99,7 @@
       };
 
       var script = document.createElement("script");
-      script.src = buildUrl + "/4b41ecab7a4c027b173d335dba5d5738.loader.js";
+      script.src = buildUrl + "/5cdc6133ed5c2659ea003d035aa30fda.loader.js";
       script.onload = function () {
         createUnityInstance(canvas, config, function (progress) {
           document.querySelector("#loading-fill").style.width = 100 * progress + "%";
