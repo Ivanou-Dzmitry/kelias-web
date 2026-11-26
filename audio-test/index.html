@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kelias audio decode test</title>
+<style>
+  body { font: 14px -apple-system, system-ui, sans-serif; margin: 12px; color: #111; }
+  button { font: inherit; padding: 10px 14px; margin: 4px 4px 4px 0; border-radius: 8px; border: 1px solid #0f5a43; background: #0f5a43; color: #fff; }
+  button.secondary { background: #fff; color: #0f5a43; }
+  #summary { font-weight: 600; margin: 10px 0; white-space: pre-wrap; }
+  #env { color: #555; font-size: 12px; white-space: pre-wrap; word-break: break-all; }
+  table { border-collapse: collapse; width: 100%; font-size: 12px; }
+  td { border-bottom: 1px solid #eee; padding: 3px 4px; }
+  .ok { color: #0a7a3c; } .fail { color: #c0182b; font-weight: 600; }
+</style>
+</head>
+<body>
+<h3>Kelias: audio decode test</h3>
+<p>Decodes each of the app's sound clips (AAC, as in the web build) with Web Audio, the way the app does.</p>
+<button id="seq">1. Decode one by one</button>
+<button id="par" class="secondary">2. Decode all at once</button>
+<button id="play" class="secondary">3. Play first clip</button>
+<button id="copy" class="secondary">Copy report</button>
+<div id="summary"></div>
+<div id="env"></div>
+<table id="rows"></table>
+<script>
+  var AC = window.AudioContext || window.webkitAudioContext;
+  var ctx = null;
+  var clips = [];
+  var report = "";
+  function context() {
+    if (!ctx) ctx = new AC();
+    if (ctx.state === "suspended" && ctx.resume) ctx.resume();
+    return ctx;
+  }
+  document.querySelector("#env").textContent =
+    navigator.userAgent + "\nAudioContext: " + (window.AudioContext ? "standard" : window.webkitAudioContext ? "webkit" : "none");
+
+  // Works with both the promise and the old callback form of decodeAudioData.
+  function decode(buffer) {
+    return new Promise(function (resolve, reject) {
+      var done = false;
+      var p = context().decodeAudioData(buffer, function (b) { if (!done) { done = true; resolve(b); } },
+                                                function (e) { if (!done) { done = true; reject(e || new Error("null error")); } });
+      if (p && p.then) p.then(function (b) { if (!done) { done = true; resolve(b); } }, function (e) { if (!done) { done = true; reject(e); } });
+    });
+  }
+
+  function load(c) {
+    return fetch("clips/" + c.file).then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.arrayBuffer(); });
+  }
+
+  function row(c, ok, text) {
+    var tr = document.createElement("tr");
+    tr.innerHTML = "<td>" + c.file + "</td><td>" + c.seconds + " s</td><td>" + c.bytes + " B</td><td class='" + (ok ? "ok" : "fail") + "'>" + text + "</td>";
+    document.querySelector("#rows").appendChild(tr);
+  }
+
+  function errText(e) { return (e && (e.name || "") + ": " + (e.message || e)) || "unknown error"; }
+
+  function finish(mode, results, ms) {
+    var failed = results.filter(function (r) { return !r.ok; });
+    var lines = [mode + ": " + (results.length - failed.length) + " of " + results.length + " decoded, " + failed.length + " failed (" + ms + " ms)"];
+    failed.forEach(function (r) { lines.push("  FAIL " + r.c.file + " (" + r.c.seconds + " s, " + r.c.bytes + " B): " + r.text); });
+    var text = lines.join("\n");
+    document.querySelector("#summary").textContent += text + "\n";
+    report += text + "\n";
+  }
+
+  function run(mode, parallel) {
+    document.querySelector("#rows").innerHTML = "";
+    var t0 = Date.now();
+    function one(c) {
+      return load(c).then(decode).then(function (b) {
+        var text = "OK " + b.sampleRate + " Hz, " + b.numberOfChannels + " ch, " + b.duration.toFixed(3) + " s";
+        row(c, true, text);
+        return { c: c, ok: true, text: text };
+      }, function (e) {
+        row(c, false, errText(e));
+        return { c: c, ok: false, text: errText(e) };
+      });
+    }
+    var done = parallel
+      ? Promise.all(clips.map(one))
+      : clips.reduce(function (p, c) { return p.then(function (acc) { return one(c).then(function (r) { acc.push(r); return acc; }); }); }, Promise.resolve([]));
+    done.then(function (results) { finish(mode, results, Date.now() - t0); });
+  }
+
+  fetch("clips.json").then(function (r) { return r.json(); }).then(function (list) {
+    clips = list;
+    document.querySelector("#summary").textContent = clips.length + " clips. Tap a button.\n";
+  });
+  document.querySelector("#seq").onclick = function () { context(); run("One by one", false); };
+  document.querySelector("#par").onclick = function () { context(); run("All at once", true); };
+  document.querySelector("#play").onclick = function () {
+    var c = clips.filter(function (x) { return x.seconds > 0.5; })[0];
+    load(c).then(decode).then(function (b) {
+      var s = context().createBufferSource(); s.buffer = b; s.connect(context().destination); s.start(0);
+      document.querySelector("#summary").textContent += "Playing " + c.file + "\n";
+    }, function (e) { document.querySelector("#summary").textContent += "Play failed: " + errText(e) + "\n"; });
+  };
+  document.querySelector("#copy").onclick = function () {
+    var text = report + "\n" + document.querySelector("#env").textContent;
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(function () { alert("Copied"); }, function () { prompt("Copy:", text); });
+    else prompt("Copy:", text);
+  };
+</script>
+</body>
+</html>
