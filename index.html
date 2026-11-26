@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="lt">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#f1fbf6">
+    <title>Kelias</title>
+    <style>
+      html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #f1fbf6; }
+      body { display: flex; align-items: center; justify-content: center; touch-action: none; }
+      /* Phone-shaped portrait frame on desktop; full window on phones. */
+      #frame { position: relative; height: 100%; aspect-ratio: 9 / 16; max-width: 100%; box-shadow: 0 0 24px rgba(0, 0, 0, 0.12); }
+      #frame.mobile { width: 100%; height: 100%; aspect-ratio: auto; box-shadow: none; }
+      #unity-canvas { width: 100%; height: 100%; display: block; background: #f1fbf6; outline: none; }
+      #loading { position: absolute; left: 20%; right: 20%; top: 50%; height: 6px; border-radius: 3px; background: rgba(0, 0, 0, 0.1); overflow: hidden; }
+      #loading-fill { width: 0; height: 100%; background: #2e9e6b; transition: width 0.2s; }
+      #banner { position: absolute; left: 0; right: 0; top: 0; font: 14px sans-serif; }
+    </style>
+  </head>
+  <body>
+    <div id="frame">
+      <canvas id="unity-canvas" tabindex="-1"></canvas>
+      <div id="loading"><div id="loading-fill"></div></div>
+      <div id="banner"></div>
+    </div>
+    <script>
+      var frame = document.querySelector("#frame");
+      var canvas = document.querySelector("#unity-canvas");
+      if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) frame.className = "mobile";
+
+      function showBanner(msg, type) {
+        var div = document.createElement("div");
+        div.textContent = msg;
+        div.style.padding = "10px";
+        div.style.background = type == "error" ? "#f88" : "#ffd";
+        document.querySelector("#banner").appendChild(div);
+        if (type != "error") setTimeout(function () { div.remove(); }, 5000);
+      }
+
+      var buildUrl = "Build";
+      var config = {
+        arguments: [],
+        dataUrl: buildUrl + "/48dcdceb1138cd3607c4f81521188d5b.data.unityweb",
+        frameworkUrl: buildUrl + "/152a1abdade619fc25d79132703e77ca.framework.js.unityweb",
+        codeUrl: buildUrl + "/b7e281502706d69f4d5115295a13e67f.wasm.unityweb",
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: "Dialogo Studija",
+        productName: "Kelias",
+        productVersion: "0.1.5",
+        showBanner: showBanner,
+        // Progress (progress.json in persistentDataPath) must survive a page reload.
+        autoSyncPersistentDataPath: true,
+      };
+
+      var script = document.createElement("script");
+      script.src = buildUrl + "/4b41ecab7a4c027b173d335dba5d5738.loader.js";
+      script.onload = function () {
+        createUnityInstance(canvas, config, function (progress) {
+          document.querySelector("#loading-fill").style.width = 100 * progress + "%";
+        }).then(function () {
+          document.querySelector("#loading").remove();
+        }).catch(function (message) {
+          showBanner(message, "error");
+        });
+      };
+      document.body.appendChild(script);
+    </script>
+  </body>
+</html>
