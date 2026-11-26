@@ -86,7 +86,7 @@
       var buildUrl = "Build";
       var config = {
         arguments: [],
-        dataUrl: buildUrl + "/19870d5b7879b40f2e80c0e2414aade1.data.unityweb",
+        dataUrl: buildUrl + "/0d7549af8977962947e159f338b68cd9.data.unityweb",
         frameworkUrl: buildUrl + "/152a1abdade619fc25d79132703e77ca.framework.js.unityweb",
         codeUrl: buildUrl + "/320375d97f784bf9b0d41123343d72e8.wasm.unityweb",
         streamingAssetsUrl: "StreamingAssets",
@@ -96,6 +96,13 @@
         showBanner: showBanner,
         // Progress (progress.json in persistentDataPath) must survive a page reload.
         autoSyncPersistentDataPath: true,
+        // Unity keeps downloads in IndexedDB. Build files have hashed names, so a cached copy is always
+        // right. Addressables bundles (localization tables) and their catalog keep the same names from
+        // build to build: a cached old table would not match the new keys ("No translation found").
+        cacheControl: function (url) {
+          if (/StreamingAssets\//.test(url)) return "no-store";
+          return "immutable";
+        },
       };
 
       var script = document.createElement("script");
